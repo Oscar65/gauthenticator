@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=gauthenticator
+Comment=Fork of google-authenticator-libpam for GTK+
+Comment[es]=Fork de google-authenticator-libpam en GTK+
+Exec=gauthenticator
+Icon=gauthenticator.png
+Terminal=false
+Type=Application
+Categories=GTK;Utility;

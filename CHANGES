@@ -1,0 +1,17 @@
+22/04/2019 Version 0.1
+  Fork from google-authentication-libpam developed with GTK+ 3.24.8 in Archlinux to learn to develop GTK+ applications.
+
+  You can create accounts with name and key (max. 16 chars).
+  It has GtkWidgets menu, tool bar and status bar.
+  Created typedef struct MYDATA to pass several GtkWidgets in signals.
+
+  If you can not get this version, you can try to change the line to check version in configure.ac:
+
+    AM_PATH_GTK_3_0(3.24.8..
+
+  and change the calls in src/gauthenticator,c that return error for previous versions.
+
+  You can add up to 5 accounts with the menu option or the add button in tool bar (only for debug. In final release I can set up to any number).
+  Each time a button with the account name will be created. Every time that user press button, the code will appear in the status bar.
+  If user press copy button in tool bar, the code will be copied in the clipboard.
+  After install you can run the program pressing windows key in gnome and typing gauthenticator.
