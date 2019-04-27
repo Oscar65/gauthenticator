@@ -1,4 +1,12 @@
-22/04/2019 Version 0.1
+27/04/2019 version 0.2
+  Updated to fix issue that menu bar, toolbar and status_bar change size if you change window size. Fixed with property vexpand to FALSE.
+  Now the account buttons are inside a GtkScrolledWindow (that needs a child GtkViewport to add a container),
+    so you can resize the window and scroll to view any button.
+  Now I use GtkBox in both containers because is not necessary a GtkGrid.
+  Increased maximum number of accounts to 1000.
+  Removed gtk_widget_show for each widget because the window has gtk_widget_show_all (window).
+
+22/04/2019 version 0.1
   Fork from google-authentication-libpam developed with GTK+ 3.24.8 in Archlinux to learn to develop GTK+ applications.
 
   You can create accounts with name and key (max. 16 chars).
@@ -9,7 +17,7 @@
 
     AM_PATH_GTK_3_0(3.24.8..
 
-  and change the calls in src/gauthenticator,c that return error for previous versions.
+  and change the calls in src/gauthenticator.c that return error for previous versions calls.
 
   You can add up to 5 accounts with the menu option or the add button in tool bar (only for debug. In final release I can set up to any number).
   Each time a button with the account name will be created. Every time that user press button, the code will appear in the status bar.

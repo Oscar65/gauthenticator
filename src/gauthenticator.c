@@ -37,17 +37,16 @@
 
 #define KEY_STR_LEN 16
 
-#define DEBUG
-
 typedef struct mydata {
   GtkWidget *window;
-  GtkWidget *grid;
-  //GtkWidget *label;
+  GtkWidget *box_scrolled;
   char key_str[KEY_STR_LEN + 1];
   GtkWidget *status_bar;
 } MYDATA;
 
-#define MAX_ACCOUNTS 5
+#define MAX_ACCOUNTS 1000
+
+#undef DEBUG
 
 MYDATA mydata[MAX_ACCOUNTS];
 
@@ -116,27 +115,17 @@ calculate_code (GtkWidget *widget,
 
   MYDATA *mydata = data;
 
-  //GtkWidget *window = mydata->window;
-  //GtkWidget *grid = mydata->grid;
-  //GtkWidget *label = mydata->label;
-  //char *key_str = mydata->key_str;
-
   tm = time(NULL)/(step_size ? step_size : 30);
-  //int correct_code = generateCode("JBSWY3DPEHPK3PXP", tm);
+
 #ifdef DEBUG
 g_printf("%s::key_str:%s\n", __FUNCTION__, mydata->key_str);
 #endif
   correct_code = generateCode(mydata->key_str, tm);
 
-  /* Get the clipboard object and copies correct_code in clipboard */
-  //snprintf(buf, 128, "%06d", correct_code );
-  //clipboard = gtk_clipboard_get (GDK_SELECTION_CLIPBOARD);
-  //gtk_clipboard_set_text (clipboard, buf, -1);
-
   expires = step_size - (time(NULL) % (step_size ? step_size : 30));
   snprintf(buf, 128, "The token is %03d %03d and expires in %02ds.", correct_code / 1000,
               correct_code - ((correct_code / 1000) * 1000), expires);
-  //gtk_label_set_text(GTK_LABEL(label), buf);
+
   gtk_statusbar_push(GTK_STATUSBAR(mydata->status_bar), 1, buf);
 }
 
@@ -158,7 +147,7 @@ new_account (GtkWidget *widget,
   if (mydata_index > (MAX_ACCOUNTS - 1)) {
     char buf[128];
     snprintf(buf, 128, "The maximum number of accounts is %d", MAX_ACCOUNTS);
-    //gtk_label_set_text(GTK_LABEL(label), buf);
+
     gtk_statusbar_push(GTK_STATUSBAR(mydata->status_bar), 1, buf);
     return;
   }
@@ -199,9 +188,8 @@ g_printf("%s::OK\n", __FUNCTION__);
       gtk_widget_show (btn);
 
       mydata[mydata_index].window = mydata->window;
-      mydata[mydata_index].grid = mydata->grid;
+      mydata[mydata_index].box_scrolled = mydata->box_scrolled;
       mydata[mydata_index].status_bar = mydata->status_bar;
-      //mydata[mydata_index].label = mydata->label;
 
       char buf1[128];
       snprintf(buf1, 128, "Added account %s", entry_account_text);
@@ -211,8 +199,11 @@ g_printf("%s::OK\n", __FUNCTION__);
 
       mydata_index += 1;
 
-      gtk_grid_insert_next_to(GTK_GRID(mydata->grid), mydata->status_bar, GTK_POS_TOP);
-      gtk_grid_attach_next_to(GTK_GRID(mydata->grid), btn, mydata->status_bar, GTK_POS_TOP, 3, 1);
+      gtk_widget_set_hexpand (btn, TRUE);
+      gtk_widget_set_halign (btn, GTK_ALIGN_FILL);
+      gtk_widget_set_vexpand (btn, TRUE);
+      gtk_widget_set_valign (btn, GTK_ALIGN_FILL);
+      gtk_box_pack_start(GTK_BOX(mydata->box_scrolled), btn, TRUE, TRUE, 5);
 
       break;
 
@@ -253,8 +244,7 @@ activate (GtkApplication *app,
 {
   GtkWidget *window;
   GtkWidget *button;
-  GtkWidget *grid;
-  //GtkWidget *label;
+  GtkWidget *main_box;
   GtkWidget *menu_item_Options;
   GtkWidget *menu_Options;
   GtkWidget *submenu_Options;
@@ -269,24 +259,30 @@ activate (GtkApplication *app,
   GtkWidget *icon_copy;
   GtkToolItem *tool_item_copy;
   GtkWidget *status_bar;
+  GtkWidget *scrolled_window;
+  GtkWidget *view_port;
+  GtkWidget *box_scrolled;
 
-  //static GtkWidget *mydata[4];
-
+  //*************************************************************************************
+  // Add application_window
+  //*************************************************************************************
   window = gtk_application_window_new (app);
-  gtk_window_set_title (GTK_WINDOW (window), "gauthenticator 0.1");
-  gtk_window_set_default_size (GTK_WINDOW (window), 500, 0);
-  gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+  gtk_window_set_title (GTK_WINDOW (window), "gauthenticator 0.2");
+  gtk_window_set_default_size (GTK_WINDOW (window), 500, 200);
+  gtk_window_set_position (GTK_WINDOW(window), GTK_WIN_POS_CENTER);
   gtk_container_set_border_width (GTK_CONTAINER (window), 5);
-
+  //*************************************************************************************
 
   //*************************************************************************************
-  // Add grid container
+  // Add main_box container
   //*************************************************************************************
-  grid = gtk_grid_new();
-  gtk_grid_set_column_homogeneous(GTK_GRID(grid), TRUE);
-  gtk_grid_set_row_homogeneous(GTK_GRID(grid), TRUE);
-  gtk_container_add (GTK_CONTAINER (window), grid);
-  gtk_widget_show (grid);
+  main_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+  gtk_widget_set_hexpand (main_box, TRUE);
+  gtk_widget_set_halign (main_box, GTK_ALIGN_FILL);
+  gtk_widget_set_vexpand (main_box, TRUE);
+  gtk_widget_set_valign (main_box, GTK_ALIGN_FILL);
+
+  gtk_container_add (GTK_CONTAINER (window), main_box);
   //*************************************************************************************
 
   //*************************************************************************************
@@ -298,15 +294,18 @@ activate (GtkApplication *app,
 
   menu_Options = gtk_menu_new();
   submenu_Options = gtk_menu_item_new_with_mnemonic("_New account");
-  gtk_menu_shell_append(GTK_MENU_SHELL (menu_Options), submenu_Options);
-  gtk_menu_item_set_submenu(GTK_MENU_ITEM (menu_item_Options), menu_Options);
-  gtk_widget_show (menu_item_Options);
+  gtk_menu_shell_append (GTK_MENU_SHELL (menu_Options), submenu_Options);
+  gtk_menu_item_set_submenu (GTK_MENU_ITEM (menu_item_Options), menu_Options);
 
   menu_item_Tools = gtk_menu_item_new_with_mnemonic ("_Tools");
   gtk_menu_shell_append (GTK_MENU_SHELL (menu_bar), menu_item_Tools);
   gtk_widget_show (menu_item_Tools);
+  gtk_widget_set_hexpand (menu_bar, TRUE);
+  gtk_widget_set_halign (menu_bar, GTK_ALIGN_FILL);
+  gtk_widget_set_vexpand (menu_bar, FALSE);
+  gtk_widget_set_valign (menu_bar, GTK_ALIGN_START);
 
-  gtk_grid_attach(GTK_GRID(grid), menu_bar, 0, 0, 3, 1);
+  gtk_box_pack_start(GTK_BOX(main_box), menu_bar, FALSE, TRUE, 0);
   //*************************************************************************************
 
   //*************************************************************************************
@@ -325,24 +324,61 @@ activate (GtkApplication *app,
   icon_add = gtk_image_new_from_icon_name("list-add", GTK_ICON_SIZE_BUTTON);
   tool_item_add = gtk_tool_button_new(icon_add, "icon-add");
   gtk_toolbar_insert(GTK_TOOLBAR(toolbar), tool_item_add, 0);
+  gtk_widget_set_hexpand (toolbar, TRUE);
+  gtk_widget_set_halign (toolbar, GTK_ALIGN_FILL);
+  gtk_widget_set_vexpand (toolbar, FALSE);
+  gtk_widget_set_valign (toolbar, GTK_ALIGN_START);
 
-  gtk_grid_attach(GTK_GRID(grid), toolbar, 0, 1, 3, 1);
+  gtk_box_pack_start(GTK_BOX(main_box), toolbar, FALSE, TRUE, 0);
+  //*************************************************************************************
+
+  //*************************************************************************************
+  // Add scrolled window
+  //*************************************************************************************
+  scrolled_window = gtk_scrolled_window_new(NULL, NULL);
+  gtk_widget_set_hexpand (scrolled_window, TRUE);
+  gtk_widget_set_halign (scrolled_window, GTK_ALIGN_FILL);
+  gtk_widget_set_vexpand (scrolled_window, TRUE);
+  gtk_widget_set_valign (scrolled_window, GTK_ALIGN_FILL);
+
+  gtk_box_pack_start(GTK_BOX(main_box), scrolled_window, FALSE, TRUE, 0);
+  //*************************************************************************************
+
+  //*************************************************************************************
+  // Add view port to scrolled window
+  //*************************************************************************************
+  view_port = gtk_viewport_new(NULL, NULL);
+  gtk_widget_set_hexpand (view_port, TRUE);
+  gtk_widget_set_halign (view_port, GTK_ALIGN_FILL);
+  gtk_widget_set_vexpand (view_port, TRUE);
+  gtk_widget_set_valign (view_port, GTK_ALIGN_FILL);
+
+  gtk_container_add (GTK_CONTAINER (scrolled_window), view_port);
+  //*************************************************************************************
+
+  //*************************************************************************************
+  // Add box_scrolled to view port
+  //*************************************************************************************
+  box_scrolled = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+
+  gtk_container_add (GTK_CONTAINER (view_port), box_scrolled);
   //*************************************************************************************
 
   //*************************************************************************************
   // Add status bar
   //*************************************************************************************
   status_bar = gtk_statusbar_new();
-  gtk_grid_attach_next_to(GTK_GRID(grid), status_bar, NULL, GTK_POS_BOTTOM, 3, 1);
+  gtk_widget_set_hexpand (status_bar, TRUE);
+  gtk_widget_set_halign (status_bar, GTK_ALIGN_FILL);
+  gtk_widget_set_vexpand (status_bar, FALSE);
+  gtk_widget_set_valign (status_bar, GTK_ALIGN_START);
   gtk_statusbar_push(GTK_STATUSBAR(status_bar), 1, "Ready");
+
+  gtk_box_pack_start(GTK_BOX(main_box), status_bar, FALSE, TRUE, 0);
   //*************************************************************************************
 
-  //label = gtk_label_new ("Press the button to calculate token...");
-  //gtk_grid_attach(GTK_GRID(grid), label, 0, 2, 3, 1);
-
   mydata2[0].window = window;
-  mydata2[0].grid = grid;
-  //mydata[mydata_index].label = label;
+  mydata2[0].box_scrolled = box_scrolled;
   mydata2[0].status_bar = status_bar;
 
   g_signal_connect (submenu_Options, "activate", G_CALLBACK(new_account), &mydata2);
