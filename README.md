@@ -12,10 +12,6 @@ sudo make install
 If you don't have access to "sudo", you have to manually become "root" prior
 to calling "make install".
 
-## You can choose HOTP (counter based) or TOTP (time based)
+## gAuthenticator is TOTP (time based) Authenticator for desktop
 
-The parameters are [-c counter] key
-
-If you add -c counter and the key, cgoogle-authenticator returns HOTP (counter based) verification code.
-
-If you only add the key, cgoogle-authenticator returns TOTP (time based) verification code.
+Support multiple accounts.
