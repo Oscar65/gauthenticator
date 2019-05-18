@@ -17,6 +17,7 @@
 // limitations under the License.
 
 #include "config.h"
+#include "gauthenticator.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -30,12 +31,13 @@
 #include <stdio.h>
 
 #include <gtk/gtk.h>
-#include <glib/gprintf.h>
 
 #define VERIFICATION_CODE_MODULUS (1000*1000) // Six digits
 #define BITS_PER_BASE32_CHAR      5           // Base32 expands space by 8/5
 
 #define KEY_STR_LEN 16
+
+#define BUFFER_LEN 128
 
 typedef struct mydata {
   GtkWidget *window;
@@ -109,7 +111,7 @@ calculate_code (GtkWidget *widget,
 {
   unsigned long tm;
   int step_size = 30;
-  char buf[128];
+  char buf[BUFFER_LEN];
   int expires;
   GtkClipboard *clipboard;
 
@@ -118,15 +120,50 @@ calculate_code (GtkWidget *widget,
   tm = time(NULL)/(step_size ? step_size : 30);
 
 #ifdef DEBUG
-g_printf("%s::key_str:%s\n", __FUNCTION__, mydata->key_str);
-#endif
+g_print ("%s::key_str:%s\n", __FUNCTION__, mydata->key_str);
+#endif // DEBUG
   correct_code = generateCode(mydata->key_str, tm);
 
   expires = step_size - (time(NULL) % (step_size ? step_size : 30));
-  snprintf(buf, 128, "The token is %03d %03d and expires in %02ds.", correct_code / 1000,
+  snprintf(buf, BUFFER_LEN, "The token is %03d %03d and expires in %2d second(s).", correct_code / 1000,
               correct_code - ((correct_code / 1000) * 1000), expires);
 
   gtk_statusbar_push(GTK_STATUSBAR(mydata->status_bar), 1, buf);
+}
+
+const SecretSchema *gauthenticator_get_schema_password (void)
+{
+    static const SecretSchema the_schema = {
+        "org.gauthenticator.Password", SECRET_SCHEMA_NONE,
+        {
+            {  "index", SECRET_SCHEMA_ATTRIBUTE_INTEGER },
+            {  "NULL", 0 },
+        }
+    };
+    return &the_schema;
+}
+
+const SecretSchema *gauthenticator_get_schema_account (void)
+{
+    static const SecretSchema the_schema = {
+        "org.gauthenticator.Account", SECRET_SCHEMA_NONE,
+        {
+            {  "index", SECRET_SCHEMA_ATTRIBUTE_INTEGER },
+            {  "NULL", 0 },
+        }
+    };
+    return &the_schema;
+}
+
+const SecretSchema *gauthenticator_get_schema_unlock (void)
+{
+    static const SecretSchema the_schema = {
+        "unlock", SECRET_SCHEMA_NONE,
+        {
+            {  "NULL", 0 },
+        }
+    };
+    return &the_schema;
 }
 
 static void
@@ -142,11 +179,11 @@ new_account (GtkWidget *widget,
   GtkWidget *acc_grid;
   GtkWidget *box_dialog;
 
-  MYDATA *mydata = data;
+  MYDATA *pdata = data;
 
   if (mydata_index > (MAX_ACCOUNTS - 1)) {
-    char buf[128];
-    snprintf(buf, 128, "The maximum number of accounts is %d", MAX_ACCOUNTS);
+    char buf[BUFFER_LEN];
+    snprintf(buf, BUFFER_LEN, "The maximum number of accounts is %d", MAX_ACCOUNTS);
 
     gtk_statusbar_push(GTK_STATUSBAR(mydata->status_bar), 1, buf);
     return;
@@ -176,23 +213,67 @@ new_account (GtkWidget *widget,
   switch (reply) {
     case 1:
 #ifdef DEBUG
-g_printf("%s::OK\n", __FUNCTION__);
-#endif
+g_print ("%s::OK\n", __FUNCTION__);
+#endif // DEBUG
       ; // Compiler does not allow keyword const after #endif
       const gchar *entry_key_text = gtk_entry_get_text(GTK_ENTRY(entry_key));
-      strncpy(mydata[mydata_index].key_str, entry_key_text, KEY_STR_LEN);
-
+      strncpy(mydata[mydata_index].key_str, entry_key_text, KEY_STR_LEN + 1);
+#ifdef DEBUG
+g_print ("%s::mydata[%d].key_str %s\n", __FUNCTION__, mydata_index, mydata[mydata_index].key_str);
+#endif // DEBUG
       const gchar *entry_account_text = gtk_entry_get_text(GTK_ENTRY(entry_account));
+
+      GError *error_password = NULL;
+      GError *error_account = NULL;
+
+      /*
+       * The variable argument list is the attributes used to later
+       * lookup the password. These attributes must conform to the schema.
+       */
+      char buf[BUFFER_LEN];
+      snprintf (buf, BUFFER_LEN, "gauthenticator password index %d", mydata_index);
+      secret_password_store_sync (GAUTHENTICATOR_SCHEMA_PASSWORD, SECRET_COLLECTION_DEFAULT,
+                                  buf, entry_key_text, NULL, &error_password,
+                                  "index", mydata_index,
+                                  NULL);
+
+      if (error_password != NULL) {
+#ifdef DEBUG
+g_printerr ("%s::ERROR %s storing the password key.\n", __FUNCTION__, error_password->message);
+#endif // DEBUG
+          g_error_free (error_password);
+      } else {
+#ifdef DEBUG
+g_print("%s::The password key has been stored correctly.\n", __FUNCTION__);
+#endif // DEBUG
+      }
+      snprintf (buf, BUFFER_LEN, "gauthenticator account index %d", mydata_index);
+
+      secret_password_store_sync (GAUTHENTICATOR_SCHEMA_ACCOUNT, SECRET_COLLECTION_DEFAULT,
+                                  buf, entry_account_text, NULL, &error_account,
+                                  "index", mydata_index,
+                                  NULL);
+
+      if (error_account != NULL) {
+#ifdef DEBUG
+g_printerr ("%s::ERROR %s storing the account key.\n", __FUNCTION__, error_account->message);
+#endif // DEBUG
+          g_error_free (error_account);
+      } else {
+#ifdef DEBUG
+g_print("%s::The account key has been stored correctly.\n", __FUNCTION__);
+#endif // DEBUG
+      }
 
       btn = gtk_button_new_with_label (entry_account_text);
       gtk_widget_show (btn);
 
-      mydata[mydata_index].window = mydata->window;
-      mydata[mydata_index].box_scrolled = mydata->box_scrolled;
-      mydata[mydata_index].status_bar = mydata->status_bar;
+      mydata[mydata_index].window = pdata->window;
+      mydata[mydata_index].box_scrolled = pdata->box_scrolled;
+      mydata[mydata_index].status_bar = pdata->status_bar;
 
-      char buf1[128];
-      snprintf(buf1, 128, "Added account %s", entry_account_text);
+      char buf1[BUFFER_LEN];
+      snprintf(buf1, BUFFER_LEN, "Added account %s", entry_account_text);
       gtk_statusbar_push(GTK_STATUSBAR(mydata->status_bar), 1, buf1);
 
       g_signal_connect (btn, "clicked", G_CALLBACK (calculate_code), &mydata[mydata_index]);
@@ -209,8 +290,8 @@ g_printf("%s::OK\n", __FUNCTION__);
 
     case 2:
 #ifdef DEBUG
-g_printf("%s::Cancel\n", __FUNCTION__);
-#endif
+g_print ("%s::Cancel\n", __FUNCTION__);
+#endif // DEBUG
       break;
   }
 
@@ -223,16 +304,15 @@ clipboard_clicked (GtkWidget *widget,
 {
   unsigned long tm;
   int step_size = 30;
-  char buf[128];
+  char buf[BUFFER_LEN];
   GtkClipboard *clipboard;
 
   MYDATA *mydata2 = data;
 
 #ifdef DEBUG
-g_printf("%s::code:%d\n", __FUNCTION__, correct_code);
-#endif
-  /* Get the clipboard object and copies correct_code in clipboard */
-  snprintf(buf, 128, "%06d", correct_code);
+g_print ("%s::code:%d\n", __FUNCTION__, correct_code);
+#endif // DEBUG
+  snprintf(buf, BUFFER_LEN, "%06d", correct_code);
   clipboard = gtk_clipboard_get (GDK_SELECTION_CLIPBOARD);
   gtk_clipboard_set_text (clipboard, buf, -1);
 
@@ -267,8 +347,8 @@ activate (GtkApplication *app,
   // Add application_window
   //*************************************************************************************
   window = gtk_application_window_new (app);
-  gtk_window_set_title (GTK_WINDOW (window), "gauthenticator 0.2");
-  gtk_window_set_default_size (GTK_WINDOW (window), 500, 200);
+  gtk_window_set_title (GTK_WINDOW (window), "gauthenticator 0.3");
+  gtk_window_set_default_size (GTK_WINDOW (window), 370, 300);
   gtk_window_set_position (GTK_WINDOW(window), GTK_WIN_POS_CENTER);
   gtk_container_set_border_width (GTK_CONTAINER (window), 5);
   //*************************************************************************************
@@ -345,23 +425,12 @@ activate (GtkApplication *app,
   //*************************************************************************************
 
   //*************************************************************************************
-  // Add view port to scrolled window
-  //*************************************************************************************
-  view_port = gtk_viewport_new(NULL, NULL);
-  gtk_widget_set_hexpand (view_port, TRUE);
-  gtk_widget_set_halign (view_port, GTK_ALIGN_FILL);
-  gtk_widget_set_vexpand (view_port, TRUE);
-  gtk_widget_set_valign (view_port, GTK_ALIGN_FILL);
-
-  gtk_container_add (GTK_CONTAINER (scrolled_window), view_port);
-  //*************************************************************************************
-
-  //*************************************************************************************
   // Add box_scrolled to view port
   //*************************************************************************************
   box_scrolled = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
-  gtk_container_add (GTK_CONTAINER (view_port), box_scrolled);
+  // We can ignore the presence of viewport
+  gtk_container_add (GTK_CONTAINER (scrolled_window), box_scrolled);
   //*************************************************************************************
 
   //*************************************************************************************
@@ -387,6 +456,93 @@ activate (GtkApplication *app,
 
   clipboard = gtk_clipboard_get (GDK_SELECTION_CLIPBOARD);
   gtk_clipboard_set_can_store (clipboard, NULL, 0);
+
+  //*************************************************************************************
+  // Save dummy empty password to show prompt that unlock keyring
+  //*************************************************************************************
+  GError *error_unlock = NULL;
+  secret_password_store_sync (GAUTHENTICATOR_SCHEMA_UNLOCK, SECRET_COLLECTION_DEFAULT,
+                              "gauthenticator unlock", "", NULL, &error_unlock,
+                              NULL);
+
+  if (error_unlock != NULL) {
+#ifdef DEBUG
+g_printerr ("%s::ERROR %s storing the unlock schema.\n", __FUNCTION__, error_unlock->message);
+#endif // DEBUG
+    g_error_free (error_unlock);
+  } else {
+#ifdef DEBUG
+g_print("%s::The unlock schema been stored correctly.\n", __FUNCTION__);
+#endif // DEBUG
+  }
+  //*************************************************************************************
+
+  //*************************************************************************************
+  // Read accounts and their key
+  //*************************************************************************************
+  for (int i = 0; i < MAX_ACCOUNTS; i++) {
+
+    GError *error_password = NULL;
+
+    /* The attributes used to lookup the password should conform to the schema. */
+    gchar *password = secret_password_lookup_sync (GAUTHENTICATOR_SCHEMA_PASSWORD, NULL, &error_password,
+                                                   "index", i,
+                                                   NULL);
+    if (error_password != NULL) {
+        /* ... handle the failure here */
+#ifdef DEBUG
+g_printerr ("%s::ERROR %s reading key %d from password\n", __FUNCTION__, error_password, i);
+#endif // DEBUG
+        g_error_free (error_password);
+    } else if (password == NULL) {
+        /* password will be null, if no matching password found */
+#ifdef DEBUG
+//g_printerr("%s::password %d null\n", __FUNCTION__, i);
+#endif // DEBUG
+    } else {
+        /* ... do something with the password */
+        GError *error_account = NULL;
+
+        gchar *account = secret_password_lookup_sync (GAUTHENTICATOR_SCHEMA_ACCOUNT, NULL, &error_account,
+                                                       "index", i,
+                                                       NULL);
+        if (error_account != NULL) {
+#ifdef DEBUG
+g_printerr ("ERROR %s reading key %d from account\n", error_account, i);
+#endif // DEBUG
+            g_error_free (error_account);
+        } else if (account == NULL) {
+#ifdef DEBUG
+g_print("%s::Found password %s but not account.\n", __FUNCTION__, password);
+#endif // DEBUG
+        } else {
+#ifdef DEBUG
+g_print("%s::Found password %s from account %s index %d \n", __FUNCTION__, password, account, i);
+#endif // DEBUG
+            GtkWidget *btn = gtk_button_new_with_label (account);
+
+            strncpy(mydata[mydata_index].key_str, password, KEY_STR_LEN + 1);
+            mydata[mydata_index].window = window;
+            mydata[mydata_index].box_scrolled = box_scrolled;
+            mydata[mydata_index].status_bar = status_bar;
+
+            g_signal_connect (btn, "clicked", G_CALLBACK (calculate_code), &mydata[mydata_index]);
+
+            gtk_widget_set_hexpand (btn, TRUE);
+            gtk_widget_set_halign (btn, GTK_ALIGN_FILL);
+            gtk_widget_set_vexpand (btn, TRUE);
+            gtk_widget_set_valign (btn, GTK_ALIGN_FILL);
+
+            gtk_box_pack_start(GTK_BOX(box_scrolled), btn, TRUE, TRUE, 5);
+
+            mydata_index += 1;
+
+            secret_password_free (account);
+        }
+        secret_password_free (password);
+    }
+  }
+  //*************************************************************************************
 
   gtk_widget_show_all (window);
 }

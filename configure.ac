@@ -20,6 +20,10 @@ AC_PROG_CC_STDC
  # Checks for libraries
 AM_PATH_GTK_3_0(3.24.8,,AC_MSG_ERROR(gauthenticator was developed with GTK+ 3.24.8. Try to change this line and new functions for functions available in your GTK+ version))
 
+PKG_CHECK_MODULES(LIBSECRET, [libsecret-1 >= 0.18.7])
+AC_SUBST(LIBSECRET_CFLAGS)
+AC_SUBST(LIBSECRET_LIBS)
+
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

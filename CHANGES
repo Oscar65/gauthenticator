@@ -1,3 +1,9 @@
+18/05/2019 version 0.3
+  Accounts saved in keyring. Because it does not unlock keyring when search for accounts (I researched without success), I need to create
+  the same empty password every time the application launch.
+  I also think that is a bug in libsecret: https://gitlab.gnome.org/GNOME/libsecret/issues/7
+  Removed GtkViewPort (not necessary).
+
 27/04/2019 version 0.2
   Updated to fix issue that menu bar, toolbar and status_bar change size if you change window size. Fixed with property vexpand to FALSE.
   Now the account buttons are inside a GtkScrolledWindow (that needs a child GtkViewport to add a container),

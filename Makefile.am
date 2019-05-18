@@ -1,6 +1,7 @@
 AUTOMAKE_OPTIONS = foreign subdir-objects
 ACLOCAL_AMFLAGS = -I build
-CFLAGS = `pkg-config --cflags gtk+-3.0` `pkg-config --libs gtk+-3.0`
+CFLAGS = `pkg-config --cflags gtk+-3.0 --libs gtk+-3.0 --libs libsecret-1`
+CPPFLAGS = -g
 
 bin_PROGRAMS = gauthenticator
 
