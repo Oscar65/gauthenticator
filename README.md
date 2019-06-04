@@ -4,6 +4,7 @@ Fork of Google Authenticator PAM module to get two-factor authentication in linu
 
 ## Build & install
 ```shell
+./bootstrap.sh
 ./configure
 make
 sudo make install
