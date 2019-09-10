@@ -1,5 +1,5 @@
 AC_PREREQ(2.61)
-AC_INIT(gauthenticator, 0.01, megia_oscar@gmail.com)
+AC_INIT(gauthenticator, 0.4, megia_oscar@gmail.com)
 AC_CONFIG_SRCDIR([src/gauthenticator.c])
 AC_CONFIG_AUX_DIR([build])
 AC_CONFIG_MACRO_DIR([build])

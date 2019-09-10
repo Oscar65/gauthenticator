@@ -158,7 +158,8 @@ const SecretSchema *gauthenticator_get_schema_account (void)
 const SecretSchema *gauthenticator_get_schema_unlock (void)
 {
     static const SecretSchema the_schema = {
-        "unlock", SECRET_SCHEMA_NONE,
+        // https://gitlab.gnome.org/GNOME/libsecret/issues/7#note_594621
+        "unlock", SECRET_SCHEMA_DONT_MATCH_NAME,
         {
             {  "NULL", 0 },
         }
@@ -347,7 +348,7 @@ activate (GtkApplication *app,
   // Add application_window
   //*************************************************************************************
   window = gtk_application_window_new (app);
-  gtk_window_set_title (GTK_WINDOW (window), "gauthenticator 0.3");
+  gtk_window_set_title (GTK_WINDOW (window), "gauthenticator 0.4");
   gtk_window_set_default_size (GTK_WINDOW (window), 370, 300);
   gtk_window_set_position (GTK_WINDOW(window), GTK_WIN_POS_CENTER);
   gtk_container_set_border_width (GTK_CONTAINER (window), 5);
@@ -456,26 +457,6 @@ activate (GtkApplication *app,
 
   clipboard = gtk_clipboard_get (GDK_SELECTION_CLIPBOARD);
   gtk_clipboard_set_can_store (clipboard, NULL, 0);
-
-  //*************************************************************************************
-  // Save dummy empty password to show prompt that unlock keyring
-  //*************************************************************************************
-  GError *error_unlock = NULL;
-  secret_password_store_sync (GAUTHENTICATOR_SCHEMA_UNLOCK, SECRET_COLLECTION_DEFAULT,
-                              "gauthenticator unlock", "", NULL, &error_unlock,
-                              NULL);
-
-  if (error_unlock != NULL) {
-#ifdef DEBUG
-g_printerr ("%s::ERROR %s storing the unlock schema.\n", __FUNCTION__, error_unlock->message);
-#endif // DEBUG
-    g_error_free (error_unlock);
-  } else {
-#ifdef DEBUG
-g_print("%s::The unlock schema been stored correctly.\n", __FUNCTION__);
-#endif // DEBUG
-  }
-  //*************************************************************************************
 
   //*************************************************************************************
   // Read accounts and their key
